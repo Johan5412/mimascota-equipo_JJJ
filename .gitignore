@@ -1,0 +1,32 @@
+# Credenciales y llaves: NUNCA al repositorio
+*.env
+!*.env.example
+*.cnf
+!*.cnf.example
+*.pem
+*.key
+id_*
+mimascota_respaldo
+mimascota_respaldo.pub
+
+# Respaldos y restauraciones (contienen datos)
+respaldos/
+restaurar/
+*.sql.zip
+mimascota_*.zip
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editores y sistema
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
