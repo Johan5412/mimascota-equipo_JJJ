@@ -1,60 +1,65 @@
-﻿<#
-  respaldo.ps1 · MiMascota · SO3 (PC Windows)
-  Respalda la base local, comprueba que el respaldo esté completo, lo comprime,
-  guarda una copia local con rotación y envía otra a la VM de Azure por SSH.
-  Uso manual:  powershell -NoProfile -ExecutionPolicy Bypass -File respaldo.ps1
-#>
-param(
-  [string]$Mysqldump    = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe',
-  [string]$Cnf          = 'C:\mimascota\config\respaldo.cnf',
-  [string]$BaseDatos    = 'administracionmascotasbd',
-  [string]$DirRespaldos = 'C:\mimascota\respaldos',
-  [string]$Log          = 'C:\mimascota\logs\respaldo.log',
-  [int]   $Dias         = 7,
-  [string]$Llave        = "$HOME\.ssh\mimascota_respaldo",
-  [string]$Destino      = 'respaldo@IP_DE_LA_VM:/var/backups/mimascota/entrantes/'
-)
-$ErrorActionPreference = 'Stop'
+# ==============================================================================
+# Script de Respaldo Automatizado - MiMascota (SO3)
+# ==============================================================================
 
-function Escribir-Log([string]$Nivel, [string]$Mensaje) {
-  $linea = '{0} [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Nivel, $Mensaje
-  Add-Content -Path $Log -Value $linea
-  Write-Output $linea
+$IP_AZURE       = "20.114.49.220"  # Reemplaza por la IP pública real de tu VM en Azure
+$USUARIO_AZURE  = "respaldo"
+$LLAVE_SSH      = "$HOME\.ssh\mimascota_respaldo"
+
+$DIR_CONFIG     = "C:\mimascota\config\respaldo.cnf"
+$DIR_BACKUPS    = "C:\mimascota\backups"
+$DIR_LOGS       = "C:\mimascota\logs"
+
+$FECHA          = Get-Date -Format "yyyyMMdd_HHmmss"
+$BASE_DATOS     = "administracionmascotasbd"
+$ARCHIVO_SQL    = "$DIR_BACKUPS\backup_${BASE_DATOS}_$FECHA.sql"
+$ARCHIVO_ZIP    = "$DIR_BACKUPS\backup_${BASE_DATOS}_$FECHA.zip"
+$ARCHIVO_LOG    = "$DIR_LOGS\respaldo.log"
+
+if (-not (Test-Path $DIR_BACKUPS)) { New-Item -ItemType Directory -Path $DIR_BACKUPS | Out-Null }
+if (-not (Test-Path $DIR_LOGS))    { New-Item -ItemType Directory -Path $DIR_LOGS | Out-Null }
+
+function Escribir-Log {
+    param ([string]$mensaje)
+    $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$timeStamp] $mensaje" | Out-File -FilePath $ARCHIVO_LOG -Append -Encoding utf8
+    Write-Host "[$timeStamp] $mensaje"
 }
 
-New-Item -ItemType Directory -Force -Path $DirRespaldos, (Split-Path $Log) | Out-Null
-$marca = Get-Date -Format 'yyyyMMdd_HHmmss'
-$sql   = Join-Path $DirRespaldos "mimascota_$marca.sql"
-$zip   = Join-Path $DirRespaldos "mimascota_$marca.zip"
+Escribir-Log "=== INICIANDO PROCESO DE RESPALDO ==="
+
+$MYSQLDUMP = "mysqldump"
+if (-not (Get-Command mysqldump -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\xampp\mysql\bin\mysqldump.exe") {
+        $MYSQLDUMP = "C:\xampp\mysql\bin\mysqldump.exe"
+    } else {
+        Escribir-Log "ERROR: No se encontró mysqldump.exe."
+        exit 1
+    }
+}
 
 try {
-  # 1. Respaldo. --result-file escribe el archivo tal cual: con ">" PowerShell 5.1 lo pasaría a UTF-16 y lo dañaría
-  & $Mysqldump "--defaults-file=$Cnf" --single-transaction --routines --triggers --no-tablespaces "--result-file=$sql" $BaseDatos
-  if ($LASTEXITCODE -ne 0) { throw "mysqldump terminó con código $LASTEXITCODE" }
+    Escribir-Log "Generando volcado SQL de '$BASE_DATOS'..."
+    & $MYSQLDUMP "--defaults-extra-file=$DIR_CONFIG" $BASE_DATOS --result-file=$ARCHIVO_SQL
 
-  # 2. Verificación: existe, no está vacío y mysqldump alcanzó a escribir su última línea
-  if (-not (Test-Path $sql) -or (Get-Item $sql).Length -eq 0) { throw 'El respaldo quedó vacío' }
-  if (-not (Select-String -Path $sql -Pattern '-- Dump completed' -SimpleMatch -Quiet)) { throw 'El respaldo está incompleto' }
+    if (-not (Test-Path $ARCHIVO_SQL) -or (Get-Item $ARCHIVO_SQL).Length -eq 0) {
+        throw "El archivo SQL no se generó o está vacío."
+    }
 
-  # 3. Compresión
-  Compress-Archive -Path $sql -DestinationPath $zip -Force
-  Remove-Item $sql
-  $kb = [math]::Round((Get-Item $zip).Length / 1KB, 1)
-  Escribir-Log 'OK' "Respaldo local $(Split-Path $zip -Leaf) ($kb KB)"
+    Escribir-Log "Comprimiendo archivo a ZIP..."
+    Compress-Archive -Path $ARCHIVO_SQL -DestinationPath $ARCHIVO_ZIP -Force
+    Remove-Item -Path $ARCHIVO_SQL -Force
 
-  # 4. Envío a Azure. BatchMode evita que se quede esperando una contraseña
-  & scp -i $Llave -o BatchMode=yes -o ConnectTimeout=15 $zip $Destino
-  if ($LASTEXITCODE -ne 0) { throw "scp terminó con código $($LASTEXITCODE): la copia local quedó, pero no llegó a Azure" }
-  Escribir-Log 'OK' 'Copia enviada a Azure'
+    Escribir-Log "Enviando archivo ZIP a Azure VM ($IP_AZURE)..."
+    scp -i $LLAVE_SSH -o StrictHostKeyChecking=no $ARCHIVO_ZIP "${USUARIO_AZURE}@${IP_AZURE}:/var/backups/mimascota/"
 
-  # 5. Rotación de la copia local
-  Get-ChildItem -Path $DirRespaldos -Filter 'mimascota_*.zip' |
-    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$Dias) } |
-    ForEach-Object { Remove-Item $_.FullName; Escribir-Log 'INFO' "Rotado $($_.Name)" }
-  exit 0
+    if ($LASTEXITCODE -eq 0) {
+        Escribir-Log "TRANSFERENCIA EXITOSA a la VM en Azure."
+    } else {
+        throw "Fallo en la transferencia por SCP."
+    }
+} catch {
+    Escribir-Log "ERROR EN EL PROCESO: $_"
 }
-catch {
-  Escribir-Log 'ERROR' $_.Exception.Message
-  if (Test-Path $sql) { Remove-Item $sql -ErrorAction SilentlyContinue }
-  exit 1
-}
+
+Escribir-Log "=== FIN DEL PROCESO DE RESPALDO ==="

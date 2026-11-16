@@ -1,22 +1,20 @@
-﻿<#
-  tareas.ps1 · MiMascota · SO5 (PC Windows)
-  Registra las dos tareas programadas. Ejecutar una vez, como el usuario que usa la app.
-#>
-$dir = 'C:\mimascota\so\windows'
-$ps  = 'powershell.exe'
+# ==============================================================================
+# Registro en Programador de Tareas de Windows - MiMascota (SO5)
+# ==============================================================================
 
-# Respaldo diario a las 7:00 p. m.; si el PC estaba apagado, corre apenas se encienda
-$accion  = New-ScheduledTaskAction -Execute $ps -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dir\respaldo.ps1`""
-$cuando  = New-ScheduledTaskTrigger -Daily -At '19:00'
-$ajustes = New-ScheduledTaskSettingsSet -StartWhenAvailable
-Register-ScheduledTask -TaskName 'MiMascota-Respaldo' -Action $accion -Trigger $cuando -Settings $ajustes `
-  -Description 'Respaldo diario de la base y envío a Azure' -Force
+$NombreTarea = "MiMascota_Respaldo_Diario"
+$RutaScript  = "C:\mimascota\scripts\respaldo.ps1"
 
-# Monitoreo cada 5 minutos entre las 7:00 a. m. y las 9:00 p. m. (horario de la clínica)
-$accion = New-ScheduledTaskAction -Execute $ps -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$dir\monitor.ps1`""
-$cuando = New-ScheduledTaskTrigger -Daily -At '07:00'
-$cuando.Repetition = (New-ScheduledTaskTrigger -Once -At '07:00' -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 14)).Repetition
-Register-ScheduledTask -TaskName 'MiMascota-Monitor' -Action $accion -Trigger $cuando -Settings $ajustes `
-  -Description 'Monitoreo de MySQL, disco, RAM y respaldos' -Force
+# Definir la acción (Ejecutar PowerShell con el script de respaldo)
+$Accion = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$RutaScript`""
 
-Get-ScheduledTask -TaskName 'MiMascota-*' | Select-Object TaskName, State
+# Definir el disparador (Todos los días a las 23:00)
+$Disparador = New-ScheduledTaskTrigger -Daily -At "23:00"
+
+# Definir configuraciones de la tarea
+$Configuracion = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+# Registrar la tarea en el sistema
+Register-ScheduledTask -TaskName $NombreTarea -Action $Accion -Trigger $Disparador -Settings $Configuracion -User "SYSTEM" -RunLevel Highest -Force
+
+Write-Host "Tarea programada '$NombreTarea' registrada con éxito en Windows." -ForegroundColor Green

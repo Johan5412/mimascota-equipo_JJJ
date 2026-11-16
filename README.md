@@ -7,7 +7,7 @@ MiMascota es una **aplicación de escritorio en Python (Tkinter, patrón MVC)** 
 Windows** de la clínica. Una **VM Ubuntu en Azure** recibe cada día una copia de la base, comprueba que se
 puede restaurar y la guarda fuera del sitio.
 
-> Guía completa: [`docs/Guia_SO_MiMascota_escritorio.pdf`](docs/Guia_SO_MiMascota_escritorio.pdf)
+> Guía técnica: [`bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ.pdf`](bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ.pdf)
 
 ## Equipo
 
@@ -19,17 +19,14 @@ puede restaurar y la guarda fuera del sitio.
 
 ## Cómo empezar
 
-1. Un integrante crea el repositorio del equipo a partir de esta plantilla (**Use this template** en GitHub),
-   con el nombre `mimascota-equipoXX`, e invita a los demás y al docente.
-2. Cada integrante lo clona en su PC:
+1. Cada integrante clona el repositorio del equipo:
 
    ```powershell
-   git clone https://github.com/USUARIO/mimascota-equipoXX.git
-   cd mimascota-equipoXX
+   git clone https://github.com/Johan5412/mimascota-equipo_JJJ.git
+   cd mimascota-equipo_JJJ
    ```
 
-3. Sigan la guía en orden: Parte A (PC Windows), B (VM de Azure), C (respaldo), D (verificación y
-   restauración) y E (monitoreo).
+2. Sigan la guía técnica y los scripts de `bd/` y `so/` según el entorno.
 
 ## Estructura
 
@@ -38,7 +35,7 @@ mimascota-equipoXX/
 ├── README.md                     este archivo; se completa como manual de despliegue (SO7)
 ├── app/                          aplicación de escritorio (Python, MVC)
 │   ├── main.py                   punto de entrada
-│   ├── config.py                 lee las credenciales de C:\mimascota\config\app.env
+│   ├── config.py                 lee las credenciales de app/app.env
 │   ├── modelo/                   SQL y conexión (el único lugar con SQL)
 │   ├── controlador/              validaciones y acciones
 │   ├── vista/                    ventanas Tkinter
@@ -64,7 +61,7 @@ Requiere Python 3.10 o superior y MySQL 8 corriendo como servicio en el PC.
 ```powershell
 cd app
 python -m pip install -r requirements.txt
-copy app.env.example C:\mimascota\config\app.env    # luego ponga la clave real en ese archivo
+copy app.env.example app.env    # luego ponga la clave real en ese archivo
 python main.py
 ```
 

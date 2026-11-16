@@ -1,27 +1,28 @@
-"""Conexión a MySQL con el usuario de la aplicación (BD6: privilegios mínimos)."""
 import mysql.connector
+from mysql.connector import Error
+from config import Config
 
-from config import DB
+class ConexionDB:
+    def __init__(self):
+        self.conexion = None
 
-
-def conectar():
-    """Abre una conexión nueva. Quien la abre, la cierra."""
-    return mysql.connector.connect(**DB)
-
-
-def probar_conexion():
-    """Devuelve (ok, mensaje). Lo usa el botón «Probar conexión».
-
-    Si falla, lo más probable es que el servicio MySQL esté detenido (SO2).
-    """
-    try:
-        cnx = conectar()
+    def conectar(self):
+        """Establece y retorna la conexión a la base de datos MySQL."""
         try:
-            cur = cnx.cursor()
-            cur.execute("SELECT VERSION()")
-            version = cur.fetchone()[0]
-        finally:
-            cnx.close()
-        return True, f"Conectado a MySQL {version} en {DB['host']}:{DB['port']} como {DB['user']}"
-    except mysql.connector.Error as err:
-        return False, f"No hay conexión con MySQL: {err.msg}. ¿Está corriendo el servicio?"
+            self.conexion = mysql.connector.connect(
+                host=Config.DB_HOST,
+                port=Config.DB_PORT,
+                user=Config.DB_USER,
+                password=Config.DB_PASSWORD,
+                database=Config.DB_NAME
+            )
+            if self.conexion.is_connected():
+                return self.conexion
+        except Error as e:
+            print(f"Error al conectar a MySQL: {e}")
+            return None
+
+    def desconectar(self):
+        """Cierra la conexión a la base de datos."""
+        if self.conexion and self.conexion.is_connected():
+            self.conexion.close()

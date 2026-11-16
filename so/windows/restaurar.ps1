@@ -1,58 +1,58 @@
-﻿<#
-  restaurar.ps1 · MiMascota · SO4 (PC Windows)
-  Trae de Azure la última copia verificada y la restaura en la base local.
-  Cierre la aplicación antes de ejecutarlo. Pide la contraseña de root de MySQL.
-#>
-param(
-  [string]  $Mysql          = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe',
-  [string[]]$Credenciales   = @('--user=root', '--password', '--host=127.0.0.1'),
-  [string]  $BaseDatos      = 'administracionmascotasbd',
-  [string]  $DirRestaurar   = 'C:\mimascota\restaurar',
-  [string]  $Log            = 'C:\mimascota\logs\respaldo.log',
-  [string]  $Llave          = "$HOME\.ssh\mimascota_respaldo",
-  [string]  $Servidor       = 'respaldo@IP_DE_LA_VM',
-  [string]  $DirVerificados = '/var/backups/mimascota/verificados',
-  [switch]  $Si
-)
-$ErrorActionPreference = 'Stop'
+# ==============================================================================
+# Script de Restauración de Base de Datos - MiMascota (SO4)
+# ==============================================================================
 
-function Escribir-Log([string]$Nivel, [string]$Mensaje) {
-  $linea = '{0} [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Nivel, $Mensaje
-  Add-Content -Path $Log -Value $linea
-  Write-Output $linea
+param (
+    [string]$NombreArchivoZip  # Ejemplo: backup_administracionmascotasbd_20261110_230000.zip
+)
+
+$IP_AZURE       = "20.114.49.220"
+$USUARIO_AZURE  = "respaldo"
+$LLAVE_SSH      = "$HOME\.ssh\mimascota_respaldo"
+
+$DIR_CONFIG     = "C:\mimascota\config\respaldo.cnf"
+$DIR_BACKUPS    = "C:\mimascota\backups"
+$DIR_LOGS       = "C:\mimascota\logs"
+$BASE_DATOS     = "administracionmascotasbd"
+$ARCHIVO_LOG    = "$DIR_LOGS\restaurar.log"
+
+function Escribir-Log {
+    param ([string]$mensaje)
+    $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$timeStamp] $mensaje" | Out-File -FilePath $ARCHIVO_LOG -Append -Encoding utf8
+    Write-Host "[$timeStamp] $mensaje"
+}
+
+if (-not $NombreArchivoZip) {
+    Write-Host "Uso: .\restaurar.ps1 -NombreArchivoZip 'backup_administracionmascotasbd_YYYYMMDD_HHMMSS.zip'" -ForegroundColor Yellow
+    exit 1
+}
+
+Escribir-Log "=== INICIANDO PROCESO DE RESTAURACIÓN ==="
+
+$MYSQL = "mysql"
+if (-not (Get-Command mysql -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\xampp\mysql\bin\mysql.exe") {
+        $MYSQL = "C:\xampp\mysql\bin\mysql.exe"
+    }
 }
 
 try {
-  New-Item -ItemType Directory -Force -Path $DirRestaurar, (Split-Path $Log) | Out-Null
+    $RutaZipLocal = "$DIR_BACKUPS\$NombreArchivoZip"
+    Escribir-Log "Descargando $NombreArchivoZip desde Azure..."
+    scp -i $LLAVE_SSH -o StrictHostKeyChecking=no "${USUARIO_AZURE}@${IP_AZURE}:/var/backups/mimascota/$NombreArchivoZip" $RutaZipLocal
 
-  # 1. Buscar la copia verificada más reciente en Azure
-  $remoto = & ssh -i $Llave -o BatchMode=yes -o ConnectTimeout=15 $Servidor "ls -1t $DirVerificados/mimascota_*.zip 2>/dev/null | head -n 1"
-  if ($LASTEXITCODE -ne 0 -or -not $remoto) { throw 'No hay copias verificadas en Azure o la VM no responde' }
-  $nombre = Split-Path $remoto -Leaf
-  Write-Output "Copia más reciente verificada: $nombre"
+    Escribir-Log "Descomprimiendo archivo de respaldo..."
+    Expand-Archive -Path $RutaZipLocal -DestinationPath $DIR_BACKUPS -Force
+    $ArchivoSql = $RutaZipLocal.Replace(".zip", ".sql")
 
-  # 2. Confirmación: la restauración reemplaza las tablas actuales
-  if (-not $Si) {
-    $r = Read-Host "Se reemplazará la base $BaseDatos con $nombre. Escriba SI para continuar"
-    if ($r -ne 'SI') { Write-Output 'Cancelado'; exit 2 }
-  }
+    Escribir-Log "Restaurando base de datos '$BASE_DATOS'..."
+    Get-Content $ArchivoSql | & $MYSQL "--defaults-extra-file=$DIR_CONFIG" $BASE_DATOS
 
-  # 3. Descargar y descomprimir
-  $zip = Join-Path $DirRestaurar $nombre
-  & scp -i $Llave -o BatchMode=yes "$($Servidor):$remoto" $zip
-  if ($LASTEXITCODE -ne 0) { throw "No se pudo descargar $nombre" }
-  Expand-Archive -Path $zip -DestinationPath $DirRestaurar -Force
-  $sql = Join-Path $DirRestaurar ($nombre -replace '\.zip$', '.sql')
-
-  # 4. Restaurar. mysql.exe no recibe archivos con "<" en PowerShell: se usa el comando source
-  $ruta = $sql -replace '\\', '/'
-  & $Mysql @Credenciales -e "CREATE DATABASE IF NOT EXISTS $BaseDatos; USE $BaseDatos; source $ruta; SELECT COUNT(*) AS tablas FROM information_schema.tables WHERE table_schema = '$BaseDatos';"
-  if ($LASTEXITCODE -ne 0) { throw "mysql terminó con código $LASTEXITCODE" }
-  Escribir-Log 'OK' "Base $BaseDatos restaurada desde $nombre"
-  Remove-Item $sql
-  exit 0
+    Escribir-Log "RESTAURACIÓN COMPLETADA CON ÉXITO."
+    Remove-Item -Path $ArchivoSql -Force
+} catch {
+    Escribir-Log "ERROR EN LA RESTAURACIÓN: $_"
 }
-catch {
-  Escribir-Log 'ERROR' "Restauración: $($_.Exception.Message)"
-  exit 1
-}
+
+Escribir-Log "=== FIN DEL PROCESO DE RESTAURACIÓN ==="

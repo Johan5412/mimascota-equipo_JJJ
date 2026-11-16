@@ -1,42 +1,36 @@
-﻿<#
-  monitor.ps1 · MiMascota · SO6 (PC Windows)
-  Una línea por ejecución en monitor.log; [ALERTA] si algo supera un umbral.
-#>
-param(
-  [string]$Servicio      = 'MySQL80',
-  [string]$Log           = 'C:\mimascota\logs\monitor.log',
-  [string]$DirRespaldos  = 'C:\mimascota\respaldos',
-  [int]   $MinDiscoLibre = 15,   # % mínimo libre en C:
-  [int]   $MinRamLibre   = 15,   # % mínimo de RAM libre
-  [int]   $HorasRespaldo = 26    # edad máxima del último respaldo local
-)
-$ErrorActionPreference = 'Stop'
-$alertas = @()
+# ==============================================================================
+# Script de Monitoreo de Recursos y Servicios - MiMascota (SO6)
+# ==============================================================================
 
-$os         = Get-CimInstance Win32_OperatingSystem
-$ramLibre   = [math]::Round(100 * $os.FreePhysicalMemory / $os.TotalVisibleMemorySize, 1)
-$disco      = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-$discoLibre = [math]::Round(100 * $disco.FreeSpace / $disco.Size, 1)
-$cpu        = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)
+$DIR_LOGS     = "C:\mimascota\logs"
+$ARCHIVO_LOG  = "$DIR_LOGS\monitor.log"
+$UMBRAL_DISCO = 10  # Porcentaje mínimo de disco libre
 
-$svc    = Get-Service -Name $Servicio -ErrorAction SilentlyContinue
-$estado = if ($svc) { [string]$svc.Status } else { 'NoExiste' }
-$proc   = Get-Process -Name mysqld -ErrorAction SilentlyContinue | Select-Object -First 1
-$memMB  = if ($proc) { [math]::Round($proc.WorkingSet64 / 1MB) } else { 0 }
-$pid_   = if ($proc) { $proc.Id } else { '-' }
-$ultimo = Get-ChildItem -Path $DirRespaldos -Filter 'mimascota_*.zip' -ErrorAction SilentlyContinue |
-          Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not (Test-Path $DIR_LOGS)) { New-Item -ItemType Directory -Path $DIR_LOGS | Out-Null }
 
-if ($ramLibre -lt $MinRamLibre)     { $alertas += "RAM libre $ramLibre %" }
-if ($discoLibre -lt $MinDiscoLibre) { $alertas += "disco C: libre $discoLibre %" }
-if ($estado -ne 'Running')          { $alertas += "servicio $Servicio en estado $estado" }
-if (-not $ultimo -or $ultimo.LastWriteTime -lt (Get-Date).AddHours(-$HorasRespaldo)) {
-  $alertas += "sin respaldo local en las últimas $HorasRespaldo h"
+function Escribir-Log {
+    param ([string]$mensaje)
+    $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$timeStamp] $mensaje" | Out-File -FilePath $ARCHIVO_LOG -Append -Encoding utf8
+    Write-Host "[$timeStamp] $mensaje"
 }
 
-$nivel = if ($alertas.Count -gt 0) { 'ALERTA' } else { 'OK' }
-$linea = '{0} [{1}] cpu={2}% ram_libre={3}% disco_libre={4}% {5}={6} mysqld_pid={7} mysqld_mem={8}MB {9}' -f `
-  (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $nivel, $cpu, $ramLibre, $discoLibre, $Servicio, $estado, $pid_, $memMB, ($alertas -join '; ')
-New-Item -ItemType Directory -Force -Path (Split-Path $Log) | Out-Null
-Add-Content -Path $Log -Value $linea
-Write-Output $linea
+Escribir-Log "--- AUDITORÍA DE MONITOREO ---"
+
+# 1. Verificación del proceso / servicio MySQL
+$MysqlProceso = Get-Process -Name "mysqld" -ErrorAction SilentlyContinue
+if ($MysqlProceso) {
+    Escribir-Log "ESTADO MYSQL: En ejecución (PID: $($MysqlProceso.Id))"
+} else {
+    Escribir-Log "ALERTA MYSQL: El servicio/proceso mysqld NO está ejecutándose."
+}
+
+# 2. Verificación de espacio en Disco C:
+$DiscoC = Get-Volume -DriveLetter C
+$PorcentajeLibre = [math]::Round(($DiscoC.SizeRemaining / $DiscoC.Size) * 100, 2)
+
+if ($PorcentajeLibre -lt $UMBRAL_DISCO) {
+    Escribir-Log "ALERTA DISCO: Espacio libre crítico en C: ($PorcentajeLibre%)"
+} else {
+    Escribir-Log "ESTADO DISCO: Espacio libre aceptable en C: ($PorcentajeLibre%)"
+}

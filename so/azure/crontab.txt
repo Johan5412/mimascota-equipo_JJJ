@@ -1,4 +1,2 @@
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-TABLAS_MIN=6
-30 2 * * * root /usr/local/sbin/verificar_respaldo.sh
+# Ejecució diaria a las 23:30 para auditar la recepción de copias de seguridad en Azure VM
+30 23 * * * /bin/bash /var/backups/verificar_respaldo.sh

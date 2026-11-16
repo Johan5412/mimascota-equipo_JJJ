@@ -11,6 +11,7 @@ mimascota_respaldo.pub
 
 # Respaldos y restauraciones (contienen datos)
 respaldos/
+**/respaldos/
 restaurar/
 *.sql.zip
 mimascota_*.zip

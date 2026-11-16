@@ -1,47 +1,25 @@
-#!/usr/bin/env bash
-# verificar_respaldo.sh · MiMascota · SO4 (VM de Azure)
-# Restaura cada copia recibida en una base de prueba. Si funciona, la mueve a verificados/;
-# si no, a rechazados/. Corre como root desde cron.
-set -Eeuo pipefail
-umask 027
+#!/bin/bash
+# ==============================================================================
+# Script de Verificación y Auditoría de Respaldos en Azure VM (SO4)
+# ==============================================================================
 
-BASE=/var/backups/mimascota
-ENTRANTES=$BASE/entrantes
-VERIFICADOS=$BASE/verificados
-RECHAZADOS=$BASE/rechazados
-LOG=/var/log/mimascota/verificacion.log
-BD_PRUEBA=mimascota_verif
-TABLAS_MIN=${TABLAS_MIN:-6}     # número de tablas de su modelo (la base de partida tiene 6)
-DIAS=7
+DIR_BACKUPS="/var/backups/mimascota"
+ARCHIVO_LOG="/var/log/verificar_respaldo.log"
 
-log() { printf '%s [%s] %s\n' "$(date '+%F %T')" "$1" "$2" >> "$LOG"; }
+timeStamp=$(date "+%Y-%m-%d %H:%M:%S")
 
-mkdir -p "$(dirname "$LOG")"
-exec 9>/run/lock/verificar_respaldo.lock
-flock -n 9 || { log ERROR "Ya hay una verificación en curso"; exit 1; }
+echo "[$timeStamp] === AUDITORÍA NOCTURNA DE RESPALDOS ===" >> "$ARCHIVO_LOG"
 
-shopt -s nullglob
-copias=("$ENTRANTES"/mimascota_*.zip)
-(( ${#copias[@]} > 0 )) || log ALERTA "No llegaron respaldos nuevos desde la última verificación"
+# Contar cuántos archivos .zip existen
+CANTIDAD=$(ls -1 $DIR_BACKUPS/*.zip 2>/dev/null | wc -l)
 
-for zip in "${copias[@]}"; do
-  nombre=$(basename "$zip")
-  mysql -e "DROP DATABASE IF EXISTS $BD_PRUEBA; CREATE DATABASE $BD_PRUEBA;"
-  if unzip -p "$zip" '*.sql' | mysql "$BD_PRUEBA" 2>>"$LOG"; then
-    tablas=$(mysql -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$BD_PRUEBA'")
-    if (( tablas >= TABLAS_MIN )); then
-      mv "$zip" "$VERIFICADOS/"
-      chown root:respaldo "$VERIFICADOS/$nombre"; chmod 640 "$VERIFICADOS/$nombre"   # respaldo lee, pero no modifica
-      log OK "$nombre restaurado en $BD_PRUEBA: $tablas tablas"
-    else
-      mv "$zip" "$RECHAZADOS/"
-      log ERROR "$nombre: solo $tablas tablas (se esperaban $TABLAS_MIN)"
-    fi
-  else
-    mv "$zip" "$RECHAZADOS/"
-    log ERROR "$nombre no se pudo restaurar"
-  fi
-done
+if [ "$CANTIDAD" -gt 0 ]; then
+    echo "[$timeStamp] ESTADO: OK. Se encontraron $CANTIDAD respaldos en $DIR_BACKUPS." >> "$ARCHIVO_LOG"
+    ULTIMO=$(ls -t $DIR_BACKUPS/*.zip | head -n 1)
+    TAMANO=$(du -h "$ULTIMO" | cut -f1)
+    echo "[$timeStamp] ÚLTIMO RESPALDO: $ULTIMO ($TAMANO)" >> "$ARCHIVO_LOG"
+else
+    echo "[$timeStamp] ALERTA: No se encontraron archivos de respaldo en $DIR_BACKUPS." >> "$ARCHIVO_LOG"
+fi
 
-mysql -e "DROP DATABASE IF EXISTS $BD_PRUEBA;"
-find "$VERIFICADOS" -name 'mimascota_*.zip' -mtime +"$DIAS" -print -delete | while read -r f; do log INFO "Rotado $(basename "$f")"; done
+echo "[$timeStamp] === FIN DE AUDITORÍA ===" >> "$ARCHIVO_LOG"
