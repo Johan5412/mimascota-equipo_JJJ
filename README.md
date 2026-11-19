@@ -58,10 +58,11 @@ mimascota-equipo_JJJ/
 Ejecutar la Aplicación (Nodo Cliente Windows)
 Requiere Python 3.10 o superior y conexión a Internet para comunicarse con el servidor MySQL en Azure (20.114.49.220:3306):
 
+```
 cd app
 python -m pip install -r requirements.txt
 python main.py
-
+```
 Credenciales de Acceso por Rol (RBAC)
 Usuario / Recepción: Ingreso directo (registro de propietarios, mascotas, programación y cancelación filtrada de citas).
 
@@ -77,7 +78,7 @@ Motor MySQL 8.0: Configurado con bind-address = 0.0.0.0, motor transaccional Inn
 
 2. Verificación de Respaldos Automáticos Diarios (02:00 AM)
 En Ubuntu Server se configuró el archivo oculto /home/azureuser/.my.cnf con permisos POSIX chmod 600 y el script ejecutable /home/azureuser/backups_mimascota/backup_bd.sh (chmod +x), programado en crontab todos los días a las 02:00 AM. Para auditarlo en Azure (RunShellScript):
-
+```
 echo "=== 1. TAREA PROGRAMADA EN CRONTAB (2:00 AM) ==="
 crontab -u azureuser -l
 
@@ -93,10 +94,10 @@ ls -lh /home/azureuser/backups_mimascota/*.sql
 
 echo "=== 5. ÚLTIMAS LÍNEAS DEL LOG DE EJECUCIÓN ==="
 tail -n 10 /home/azureuser/backups_mimascota/backup.log 2>/dev/null || echo "Sin errores registrados en backup.log"
-
+```
 3. Prueba de Tolerancia a Fallos con Systemd (SIGKILL) y Continuidad de la App
 Para demostrar que systemd recupera automáticamente el demonio mysqld (Restart=on-failure) sin interrumpir la aplicación cliente en Windows:
-
+```
 echo "=== 1. PID ORIGINAL DE MYSQL ==="
 PID_ANTES=$(pidof mysqld)
 echo "PID antes del fallo: $PID_ANTES"
@@ -109,11 +110,12 @@ sleep 3
 PID_DESPUES=$(pidof mysqld)
 echo "PID recuperado por systemd: $PID_DESPUES"
 systemctl status mysql --no-pager | head -n 10
-
+```
 4. Descarga Segura (SCP) y Restauración ante Desastres
-
+```
 # Descargar respaldos generados en Azure hacia la carpeta local bd/respaldos/
 scp azureuser@20.114.49.220:~/backups_mimascota/*.sql C:\Users\JOHAN\Desktop\Mimascota_equipo-JJJ\bd\respaldos\
-
+```
+```
 # Restaurar un volcado lógico (.sql) en el servidor Ubuntu
 mysql -u app_mimascota -p123456 mimascota < /home/azureuser/backups_mimascota/ARCHIVO_RESPALDO.sql
