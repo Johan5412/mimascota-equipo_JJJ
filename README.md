@@ -1,111 +1,69 @@
-# MiMascota · Proyecto Integrador Momento 3
+# MiMascota · Proyecto Integrador Momento 3 (Equipo JJJ)
 
-Plantilla del proyecto integrador de **Bases de Datos** y **Sistemas Operativos y Compiladores (710068)**
-· Ingeniería de Software · Universidad Cooperativa de Colombia.
+Sistema de información clínica veterinaria desarrollado para las asignaturas de **Bases de Datos** y **Sistemas Operativos** · Ingeniería de Software (4.º Semestre) · **Universidad Cooperativa de Colombia — Campus Popayán**.
 
-MiMascota es una **aplicación de escritorio en Python (Tkinter, patrón MVC)** que usa **MySQL en el PC
-Windows** de la clínica. Una **VM Ubuntu en Azure** recibe cada día una copia de la base, comprueba que se
-puede restaurar y la guarda fuera del sitio.
+**MiMascota** es una **aplicación de escritorio multiplataforma en Python 3 (Tkinter, patrón Modelo-Vista-Controlador)** ejecutada en estaciones cliente Windows, conectada mediante TCP/IP (puerto `3306`) a un motor **MySQL Server 8.0** desplegado en una máquina virtual **Ubuntu Server 22.04 LTS en Microsoft Azure** (`20.114.49.220`), con respaldos automáticos diarios mediante `cron` + `mysqldump`, tolerancia a fallos gestionada por `systemd` y respaldo manual bajo demanda desde el módulo administrativo.
 
-> Guía técnica: [`bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ.pdf`](bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ.pdf)
-
-## Equipo
-
-| Integrante | Usuario de GitHub | Rol principal |
-| --- | --- | --- |
-| Johan Manuel Restrepo Rosero| Johan5412 | APP |
-| Jhojan Camilo Quintero | _@usuario_ |BD |
-| Juan David Sanchez Burbano | _@usuario_ | SO|
-
-
-2. Sigan la guía técnica y los scripts de `bd/` y `so/` según el entorno.
-
-## Estructura
-
-```text
-mimascota-equipoXX/
-├── README.md                     este archivo; se completa como manual de despliegue (SO7)
-├── app/                          aplicación de escritorio (Python, MVC)
-│   ├── main.py                   punto de entrada
-│   ├── config.py                 lee las credenciales de app/app.env
-│   ├── modelo/                   SQL y conexión (el único lugar con SQL)
-│   ├── controlador/              validaciones y acciones
-│   ├── vista/                    ventanas Tkinter
-│   ├── tests/                    pruebas (unittest)
-│   ├── requirements.txt
-│   └── app.env.example           plantilla de credenciales, sin claves reales
-├── bd/                           Bases de Datos (BD1–BD6)
-│   ├── 00_base_inicial.sql       base de partida administracionmascotasbd (6 tablas)
-│   ├── 01_ddl.sql … 06_usuarios.sql
-│   ├── modelo/                   MER, relacional, diccionario, 3FN (BD1)
-│   └── pruebas/pruebas_bd5.sql   casos de prueba que deben fallar
-├── so/                           Sistemas Operativos (SO1–SO6)
-│   ├── windows/                  respaldo.ps1, restaurar.ps1, monitor.ps1, tareas.ps1
-│   ├── azure/                    preparar_azure.sh, verificar_respaldo.sh, crontab.txt
-│   └── evidencias/               capturas de SO1 a SO6
-└── docs/                         guía del proyecto
-```
-
-## Ejecutar la aplicación
-
-Requiere Python 3.10 o superior y MySQL 8 corriendo como servicio en el PC.
-
-```powershell
-cd app
-python -m pip install -r requirements.txt
-copy app.env.example app.env    # luego ponga la clave real en ese archivo
-python main.py
-```
-
-Pruebas (no necesitan MySQL):
-
-```powershell
-cd app
-python -m unittest discover -s tests -v
-```
-
-## Entregables
-
-| Código | Entregable | Dónde | Peso |
-| --- | --- | --- | --- |
-| BD1 | Modelo de datos (mínimo 10 tablas) | `bd/modelo/` | según guía de BD |
-| BD2–BD6 | DDL, datos, consultas y vistas, lógica, usuarios | `bd/01…06` | según guía de BD |
-| SO1 | Preparación de los dos equipos | `so/azure/preparar_azure.sh`, evidencias | 10 % |
-| SO2 | Motor de base de datos | evidencias del servicio y del firewall | 15 % |
-| SO3 | Respaldo y envío a la nube | `so/windows/respaldo.ps1` | 20 % |
-| SO4 | Verificación y restauración | `so/azure/verificar_respaldo.sh`, `so/windows/restaurar.ps1` | 20 % |
-| SO5 | Tareas programadas | `so/windows/tareas.ps1`, `so/azure/crontab.txt` | 10 % |
-| SO6 | Monitoreo y procesos | `so/windows/monitor.ps1`, informe de procesos | 15 % |
-| SO7 | Manual de despliegue | este README | 10 % |
-
-## Reglas del repositorio
-
-- **Nunca** se suben contraseñas, llaves privadas ni archivos `.cnf` o `.env` reales: solo los `.example`.
-  El `.gitignore` ya los bloquea; revisen antes de cada `git push`.
-- Todos los integrantes deben tener commits propios.
-- Los scripts de `bd/` deben correr en orden, sin errores, sobre una base vacía.
+* **Guía Técnica de Base de Datos (v2):** [`bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ_v2.docx`](bd/modelo/Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ_v2.docx)
+* **Guía Técnica de Sistemas Operativos (v2):** [`so/evidencias/Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx`](so/evidencias/Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx)
 
 ---
 
-## Manual de despliegue (SO7) · completar por el equipo
+## Equipo de Desarrollo (Grupo JJJ)
 
-> Escriban aquí los pasos para que **otra persona** monte todo desde cero, con los comandos exactos que
-> usaron y lo que debe ver en cada paso.
+| Integrante | Usuario GitHub | Rol Principal |
+| :--- | :--- | :--- |
+| **Johan Manuel Restrepo Rosero** | [@Johan5412](https://github.com/Johan5412) | Arquitectura MVC, Interfaz Tkinter, Integración Cloud |
+| **Jhojan Camilo Quintero** | `@jhojanquintero` | Modelado Relacional (3FN), DDL/DML, Procedimientos y Triggers |
+| **Juan David Sánchez Burbano** | `@juandavidsanchez` | Infraestructura Linux Ubuntu, Systemd, Permisos POSIX y Cron |
 
-### 1. PC Windows
-_Instalación de MySQL como servicio, recuperación, `bind-address`, carpetas y permisos, usuarios de MySQL,
-`app.env` y `respaldo.cnf`, llave SSH._
+---
 
-### 2. VM de Azure
-_Creación de la VM, `preparar_azure.sh`, primera conexión desde el PC._
+## Estructura del Repositorio
 
-### 3. Respaldo, verificación y restauración
-_Cómo se programan las tareas, dónde quedan los logs y cómo se restaura._
+```text
+mimascota-equipo_JJJ/
+├── README.md                                                # Manual de despliegue y sustentación (SO7)
+├── .gitignore                                               # Exclusión de cachés (__pycache__) y archivos temporales
+├── app/                                                     # Aplicación de escritorio (Python 3 + Tkinter MVC)
+│   ├── main.py                                              # Punto de entrada y control de acceso por roles (RBAC)
+│   ├── mimascota.ico                                        # Ícono nativo para acceso directo en Windows
+│   ├── requirements.txt                                     # Dependencia mysql-connector-python
+│   ├── modelo/                                              # Conexión TCP/IP a Azure y consultas parametrizadas (%s)
+│   ├── controlador/                                         # Validaciones de dominio, transacciones y respaldo SQL
+│   └── vista/                                               # Interfaces gráficas (Recepción, Veterinario, Admin y Estilos)
+├── bd/                                                      # Ingeniería de Datos (BD1–BD6)
+│   ├── 00_base_inicial.sql ... 07_migracion_veterinario.sql # Scripts DDL, datos maestros, triggers y migraciones
+│   ├── modelo/
+│   │   ├── Modelo_Entidad_Relacion.dia                      # Diagrama Entidad-Relación (10 entidades)
+│   │   ├── Modelo_Relacional.dia                            # Esquema relacional normalizado (3FN)
+│   │   └── Guia_Tecnica_Base_de_Datos_MiMascota_TripleJ_JJJ_v2.docx
+│   ├── pruebas/                                             # Casos de prueba de integridad referencial y restricciones
+│   └── respaldos/                                           # Volcados lógicos (.sql) generados y sincronizados
+└── so/                                                      # Infraestructura y Sistemas Operativos (S01–S07)
+    ├── windows/                                             # Scripts PowerShell de respaldo, restauración y monitoreo
+Ejecutar la Aplicación (Nodo Cliente Windows)
+Requiere Python 3.10 o superior y conexión a Internet para comunicarse con el servidor MySQL en Azure (20.114.49.220:3306):
 
-### 4. Verificación final
-_Cómo comprobar que todo funciona (las tres pruebas de fuego)._
+cd app
+python -m pip install -r requirements.txt
+python main.py
 
+Credenciales de Acceso por Rol (RBAC)
+Usuario / Recepción: Ingreso directo (registro de propietarios, mascotas, programación y cancelación filtrada de citas).
 
+Médico Veterinario: PIN 2468 (consulta de citas pendientes, diagnóstico, prescripción en detalle_atencion y vacunación).
+
+Administrador: Contraseña 12345 (CRUD completo sobre las 10 entidades y exportación manual de respaldo .sql).
+
+Manual de Despliegue y Verificación en Nube (SO7)
+1. Arquitectura Cliente-Servidor (Windows + Azure Ubuntu 22.04 LTS)
+Servidor Cloud (mimascota-vm): Instancia Standard B2ats v2 (2 vCPU, 1 GiB RAM) en Microsoft Azure con IP pública 20.114.49.220 y reglas NSG habilitadas únicamente para 22/TCP (SSH/SCP) y 3306/TCP (MySQL).
+
+Motor MySQL 8.0: Configurado con bind-address = 0.0.0.0, motor transaccional InnoDB y usuario dedicado app_mimascota bajo principio de mínimo privilegio.
+
+2. Verificación de Respaldos Automáticos Diarios (02:00 AM)
+En Ubuntu Server se configuró el archivo oculto /home/azureuser/.my.cnf con permisos POSIX chmod 600 y el script ejecutable /home/azureuser/backups_mimascota/backup_bd.sh (chmod +x), programado en crontab todos los días a las 02:00 AM. Para auditarlo en Azure (RunShellScript):
 
 echo "=== 1. TAREA PROGRAMADA EN CRONTAB (2:00 AM) ==="
 crontab -u azureuser -l
@@ -122,3 +80,32 @@ ls -lh /home/azureuser/backups_mimascota/*.sql
 
 echo "=== 5. ÚLTIMAS LÍNEAS DEL LOG DE EJECUCIÓN ==="
 tail -n 10 /home/azureuser/backups_mimascota/backup.log 2>/dev/null || echo "Sin errores registrados en backup.log"
+
+3. Prueba de Tolerancia a Fallos con Systemd (SIGKILL) y Continuidad de la App
+Para demostrar que systemd recupera automáticamente el demonio mysqld (Restart=on-failure) sin interrumpir la aplicación cliente en Windows:
+
+echo "=== 1. PID ORIGINAL DE MYSQL ==="
+PID_ANTES=$(pidof mysqld)
+echo "PID antes del fallo: $PID_ANTES"
+
+echo "=== 2. ENVIANDO SEÑAL DE TERMINACIÓN ABRUPTA (SIGKILL / kill -9) ==="
+sudo kill -9 $PID_ANTES
+
+echo "=== 3. ESPERANDO RECUPERACIÓN AUTOMÁTICA DE SYSTEMD ==="
+sleep 3
+PID_DESPUES=$(pidof mysqld)
+echo "PID recuperado por systemd: $PID_DESPUES"
+systemctl status mysql --no-pager | head -n 10
+
+4. Descarga Segura (SCP) y Restauración ante Desastres
+
+# Descargar respaldos generados en Azure hacia la carpeta local bd/respaldos/
+scp azureuser@20.114.49.220:~/backups_mimascota/*.sql C:\Users\JOHAN\Desktop\Mimascota_equipo-JJJ\bd\respaldos\
+
+# Restaurar un volcado lógico (.sql) en el servidor Ubuntu
+mysql -u app_mimascota -p123456 mimascota < /home/azureuser/backups_mimascota/ARCHIVO_RESPALDO.sql
+
+
+    ├── azure/                                               # Scripts Bash de aprovisionamiento y verificación en Ubuntu
+    └── evidencias/
+        └── Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx
