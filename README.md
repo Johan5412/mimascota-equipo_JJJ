@@ -13,18 +13,10 @@ puede restaurar y la guarda fuera del sitio.
 
 | Integrante | Usuario de GitHub | Rol principal |
 | --- | --- | --- |
-| _Nombre 1_ | _@usuario_ | _BD / SO / App_ |
-| _Nombre 2_ | _@usuario_ | |
-| _Nombre 3_ | _@usuario_ | |
+| Johan Manuel Restrepo Rosero| Johan5412 | APP |
+| Jhojan Camilo Quintero | _@usuario_ |BD |
+| Juan David Sanchez Burbano | _@usuario_ | SO|
 
-## Cómo empezar
-
-1. Cada integrante clona el repositorio del equipo:
-
-   ```powershell
-   git clone https://github.com/Johan5412/mimascota-equipo_JJJ.git
-   cd mimascota-equipo_JJJ
-   ```
 
 2. Sigan la guía técnica y los scripts de `bd/` y `so/` según el entorno.
 
