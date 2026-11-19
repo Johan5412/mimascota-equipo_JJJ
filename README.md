@@ -41,7 +41,19 @@ mimascota-equipo_JJJ/
 │   ├── pruebas/                                             # Casos de prueba de integridad referencial y restricciones
 │   └── respaldos/                                           # Volcados lógicos (.sql) generados y sincronizados
 └── so/                                                      # Infraestructura y Sistemas Operativos (S01–S07)
-    ├── windows/                                             # Scripts PowerShell de respaldo, restauración y monitoreo
+    ├── windows/                                             # Scripts PowerShell de administración local
+    │   ├── monitor.ps1                                      # Monitoreo de procesos y estado del servicio
+    │   ├── respaldo.cnf.example                             # Plantilla de configuración de credenciales seguras
+    │   ├── respaldo.ps1                                     # Automatización de respaldo en cliente Windows
+    │   ├── restaurar.ps1                                    # Script de restauración ante desastres
+    │   └── tareas.ps1                                       # Gestión de tareas programadas en Windows
+    ├── azure/                                               # Scripts Bash y planificación en Ubuntu Server 22.04
+    │   ├── crontab.txt                                      # Definición de tarea programada diaria (02:00 AM)
+    │   ├── preparar_azure.sh                                # Aprovisionamiento y seguridad en nodo Linux
+    │   └── verificar_respaldo.sh                            # Auditoría e integridad de volcados .sql
+    └── evidencias/
+        └── Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx
+
 Ejecutar la Aplicación (Nodo Cliente Windows)
 Requiere Python 3.10 o superior y conexión a Internet para comunicarse con el servidor MySQL en Azure (20.114.49.220:3306):
 
@@ -104,8 +116,3 @@ scp azureuser@20.114.49.220:~/backups_mimascota/*.sql C:\Users\JOHAN\Desktop\Mim
 
 # Restaurar un volcado lógico (.sql) en el servidor Ubuntu
 mysql -u app_mimascota -p123456 mimascota < /home/azureuser/backups_mimascota/ARCHIVO_RESPALDO.sql
-
-
-    ├── azure/                                               # Scripts Bash de aprovisionamiento y verificación en Ubuntu
-    └── evidencias/
-        └── Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx
