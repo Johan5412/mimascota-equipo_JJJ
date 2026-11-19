@@ -22,5 +22,10 @@ mysql -u root -p administracionmascotasbd -e "source C:/ruta/al/repo/bd/01_ddl.s
 # … 02 a 06 en orden
 ```
 
+Para una base ya existente con la estructura antigua de `veterinario`, ejecutar
+`07_migracion_veterinario.sql` una sola vez antes de abrir la aplicación. Esta
+migración conserva los registros; no ejecutar `01_ddl.sql` sobre una base con
+datos porque elimina y recrea las tablas.
+
 Cuando el modelo cambie de número de tablas, actualicen `TABLAS_MIN` en `so/azure/crontab.txt`
 (y en `/etc/cron.d/mimascota` de la VM).

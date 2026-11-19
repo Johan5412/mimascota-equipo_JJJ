@@ -26,11 +26,12 @@ INSERT INTO propietario (nombre, telefono, correo, direccion) VALUES
 ('Gloria Ines Vargas', '3161239988', 'gloria.vargas@email.com', 'Cra 10 # 13-44, Las Americas');
 
 -- 2. INSERCIÓN DE 4 VETERINARIOS
-INSERT INTO veterinario (nombre, tarjeta_profesional, telefono) VALUES
-('Dr. Roberto Jaramillo', 'TP-90812', '3101112233'),
-('Dra. Laura Montes', 'TP-77634', '3152223344'),
-('Dr. Julian Bastidas', 'TP-55421', '3203334455'),
-('Dra. Sofia Vergara', 'TP-11298', '3184445566');
+INSERT INTO veterinario
+    (nombre, especialidad, tarjeta_profesional, telefono, correo) VALUES
+('Dr. Roberto Jaramillo', 'Medicina general', 'TP-90812', '3101112233', 'roberto.jaramillo@mimascota.com'),
+('Dra. Laura Montes', 'Medicina felina', 'TP-77634', '3152223344', 'laura.montes@mimascota.com'),
+('Dr. Julian Bastidas', 'Cirugía veterinaria', 'TP-55421', '3203334455', 'julian.bastidas@mimascota.com'),
+('Dra. Sofia Vergara', 'Dermatología veterinaria', 'TP-11298', '3184445566', 'sofia.vergara@mimascota.com');
 
 -- 3. INSERCIÓN DE 8 SERVICIOS CLÍNICOS
 INSERT INTO servicio (nombre_servicio, precio) VALUES

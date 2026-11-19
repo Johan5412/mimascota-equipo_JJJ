@@ -38,7 +38,7 @@ BEGIN
 END //
 
 -- ----------------------------------------------------------
--- 2. TRIGGER 1: Control Sanitario Estricto
+-- 2. TRIGGER 1: Control Sanitario Estricto (INSERT y UPDATE)
 -- Regla de Negocio: No se pueden vacunar mascotas fallecidas o adoptadas,
 -- ni poner fechas de aplicación en el futuro.
 -- ----------------------------------------------------------
@@ -68,6 +68,18 @@ BEGIN
     END IF;
 END //
 
+DROP TRIGGER IF EXISTS trg_validar_vacuna_update //
+
+CREATE TRIGGER trg_validar_vacuna_update
+BEFORE UPDATE ON vacuna
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha_aplicacion > CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'ERROR DE NEGOCIO: No se puede actualizar la fecha de aplicación de la vacuna a una fecha futura.';
+    END IF;
+END //
+
 -- ----------------------------------------------------------
 -- 3. TRIGGER 2: Seguridad en el Historial Clínico
 -- Regla de Negocio: Solo las citas con estado "atendida" pueden generar historial clínico.
@@ -89,6 +101,34 @@ BEGIN
     IF v_estado_cita != 'atendida' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'ERROR DE NEGOCIO: Solo se puede crear un historial clínico para citas con estado ATENDIDA.';
+    END IF;
+END //
+
+-- ----------------------------------------------------------
+-- 4. TRIGGER 3: Validación de Fecha de Nacimiento en Mascota (INSERT y UPDATE)
+-- Regla de Negocio: No se permiten mascotas con fecha de nacimiento futura.
+-- ----------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_validar_fecha_mascota_insert //
+
+CREATE TRIGGER trg_validar_fecha_mascota_insert
+BEFORE INSERT ON mascota
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha_nacimiento > CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'ERROR DE NEGOCIO: La fecha de nacimiento de la mascota no puede ser en el futuro.';
+    END IF;
+END //
+
+DROP TRIGGER IF EXISTS trg_validar_fecha_mascota_update //
+
+CREATE TRIGGER trg_validar_fecha_mascota_update
+BEFORE UPDATE ON mascota
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha_nacimiento > CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'ERROR DE NEGOCIO: No se puede actualizar la fecha de nacimiento a una fecha futura.';
     END IF;
 END //
 

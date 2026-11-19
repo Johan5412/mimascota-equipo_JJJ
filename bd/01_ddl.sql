@@ -28,8 +28,10 @@ CREATE TABLE propietario (
 CREATE TABLE veterinario (
     id_veterinario INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(60) NOT NULL,
+    especialidad VARCHAR(60) NOT NULL,
     tarjeta_profesional VARCHAR(30) UNIQUE NOT NULL,
-    telefono VARCHAR(20) NOT NULL
+    telefono VARCHAR(20) NOT NULL,
+    correo VARCHAR(100) UNIQUE NOT NULL
 );
 
 CREATE TABLE servicio (
