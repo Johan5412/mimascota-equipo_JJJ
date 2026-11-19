@@ -104,3 +104,21 @@ _Cómo se programan las tareas, dónde quedan los logs y cómo se restaura._
 
 ### 4. Verificación final
 _Cómo comprobar que todo funciona (las tres pruebas de fuego)._
+
+
+
+echo "=== 1. TAREA PROGRAMADA EN CRONTAB (2:00 AM) ==="
+crontab -u azureuser -l
+
+echo "=== 2. ESTADO DEL DEMONIO CRON EN UBUNTU ==="
+systemctl is-active cron
+
+echo "=== 3. SCRIPT BASH Y PERMISOS POSIX ==="
+ls -lh /home/azureuser/backups_mimascota/backup_bd.sh
+cat /home/azureuser/backups_mimascota/backup_bd.sh
+
+echo "=== 4. ARCHIVOS DE RESPALDO GENERADOS AUTOMÁTICAMENTE (.sql) ==="
+ls -lh /home/azureuser/backups_mimascota/*.sql
+
+echo "=== 5. ÚLTIMAS LÍNEAS DEL LOG DE EJECUCIÓN ==="
+tail -n 10 /home/azureuser/backups_mimascota/backup.log 2>/dev/null || echo "Sin errores registrados en backup.log"
