@@ -8,6 +8,7 @@ class MascotaModelo:
     def __init__(self):
         self.db = ConexionDB()
         self.conexion = self.db
+        self.columnas_veterinarios = ()
 
     @staticmethod
     def _sql_identificador(identificador):
@@ -101,7 +102,10 @@ class MascotaModelo:
         if conexion:
             try:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM mascota")
+                cursor.execute(
+                    "SELECT id_mascota, nombre, especie, raza, fecha_nacimiento, "
+                    "sexo, estado FROM mascota ORDER BY id_mascota ASC"
+                )
                 resultado = cursor.fetchall()
                 cursor.close()
                 self.db.desconectar()
@@ -210,22 +214,104 @@ class MascotaModelo:
                 return False
         return False
 
-    def guardar_cita(self, id_mascota, id_veterinario, id_servicio, fecha_hora, estado):
+    def guardar_cita(self, id_mascota, id_veterinario, id_servicio, fecha_hora):
         conexion = self.db.conectar()
-        if conexion:
+        if not conexion:
+            raise RuntimeError("No fue posible conectar con la base de datos.")
+
+        cursor = None
+        try:
+            cursor = conexion.cursor()
+            cursor.callproc(
+                "sp_agendar_cita",
+                (id_mascota, id_veterinario, id_servicio, fecha_hora)
+            )
+            conexion.commit()
+            return True
+        except Exception:
+            conexion.rollback()
+            raise
+        finally:
             try:
-                cursor = conexion.cursor()
-                sql = "INSERT INTO cita (id_mascota, id_veterinario, id_servicio, fecha_hora, estado) VALUES (%s, %s, %s, %s, %s)"
-                valores = (id_mascota, id_veterinario, id_servicio, fecha_hora, estado)
-                cursor.execute(sql, valores)
-                conexion.commit()
-                cursor.close()
+                if cursor is not None:
+                    cursor.close()
+            finally:
                 self.db.desconectar()
-                return True
-            except Exception as e:
-                print(f"Error al guardar cita: {e}")
-                return False
-        return False
+
+    def listar_citas_gestion(self):
+        conexion = self.db.conectar()
+        if not conexion:
+            raise RuntimeError("No fue posible conectar con la base de datos.")
+
+        cursor = None
+        try:
+            cursor = conexion.cursor()
+            cursor.execute(
+                "SELECT c.id_cita, "
+                "CONCAT(m.id_mascota, ' - ', m.nombre) AS mascota, "
+                "m.especie, "
+                "COALESCE(p.nombre, 'Sin propietario asignado') AS propietario, "
+                "COALESCE(p.telefono, '—') AS telefono, "
+                "v.nombre AS veterinario, s.nombre_servicio, "
+                "c.fecha_hora, c.estado "
+                "FROM cita c "
+                "JOIN mascota m ON c.id_mascota = m.id_mascota "
+                "LEFT JOIN historial_propietario hp "
+                "ON m.id_mascota = hp.id_mascota AND hp.fecha_fin IS NULL "
+                "LEFT JOIN propietario p ON hp.id_propietario = p.id_propietario "
+                "JOIN veterinario v ON c.id_veterinario = v.id_veterinario "
+                "JOIN servicio s ON c.id_servicio = s.id_servicio "
+                "WHERE c.estado = 'programada' "
+                "ORDER BY c.fecha_hora DESC, c.id_cita DESC"
+            )
+            return cursor.fetchall()
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            finally:
+                self.db.desconectar()
+
+    def cancelar_cita(self, id_cita):
+        conexion = self.db.conectar()
+        if not conexion:
+            raise RuntimeError("No fue posible conectar con la base de datos.")
+
+        cursor = None
+        try:
+            cursor = conexion.cursor()
+            cursor.execute(
+                "SELECT estado FROM cita WHERE id_cita = %s FOR UPDATE",
+                (id_cita,)
+            )
+            cita = cursor.fetchone()
+            if not cita:
+                raise ValueError("La cita no existe.")
+            if cita[0] == "atendida":
+                raise ValueError("No se puede cancelar una cita atendida.")
+            if cita[0] == "cancelada":
+                raise ValueError("La cita ya está cancelada.")
+            if cita[0] != "programada":
+                raise ValueError("La cita no tiene un estado cancelable.")
+
+            cursor.execute(
+                "UPDATE cita SET estado = 'cancelada' "
+                "WHERE id_cita = %s AND estado = 'programada'",
+                (id_cita,)
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError("No fue posible actualizar el estado de la cita.")
+            conexion.commit()
+            return True
+        except Exception:
+            conexion.rollback()
+            raise
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            finally:
+                self.db.desconectar()
 
     def guardar_historial_clinico(self, id_cita, diagnostico, peso_actual, observaciones):
         conexion = self.db.conectar()
@@ -247,18 +333,73 @@ class MascotaModelo:
     # 3. veterinario
     def obtener_veterinarios(self):
         conexion = self.db.conectar()
-        if conexion:
+        if not conexion:
+            raise RuntimeError("No fue posible conectar con la base de datos.")
+
+        cursor = None
+        try:
+            cursor = conexion.cursor()
+            cursor.execute("SHOW COLUMNS FROM veterinario")
+            columnas_disponibles = {
+                str(fila[0]).lower(): str(fila[0])
+                for fila in cursor.fetchall()
+            }
+
+            campos = []
+            encabezados = []
+            for campo, encabezado in (
+                ("id_veterinario", "ID"),
+                ("nombre", "Nombre")
+            ):
+                if campo not in columnas_disponibles:
+                    raise RuntimeError(
+                        "La tabla veterinario no contiene la columna requerida: {}."
+                        .format(campo)
+                    )
+                campos.append(columnas_disponibles[campo])
+                encabezados.append(encabezado)
+
+            if "especialidad" in columnas_disponibles:
+                campos.append(columnas_disponibles["especialidad"])
+                encabezados.append("Especialidad")
+            elif "tarjeta_profesional" in columnas_disponibles:
+                campos.append(columnas_disponibles["tarjeta_profesional"])
+                encabezados.append("Tarjeta profesional")
+
+            campo_telefono = (
+                columnas_disponibles.get("telefono")
+                or columnas_disponibles.get("phone")
+            )
+            if campo_telefono is None:
+                raise RuntimeError(
+                    "La tabla veterinario no contiene teléfono ni telefono."
+                )
+            campos.append(campo_telefono)
+            encabezados.append("Teléfono")
+
+            campo_correo = (
+                columnas_disponibles.get("correo")
+                or columnas_disponibles.get("email")
+            )
+            if campo_correo is not None:
+                campos.append(campo_correo)
+                encabezados.append(
+                    "Correo" if campo_correo.lower() == "correo" else "Email"
+                )
+
+            consulta = "SELECT {} FROM veterinario".format(
+                ", ".join(self._sql_identificador(campo) for campo in campos)
+            )
+            cursor.execute(consulta)
+            resultado = cursor.fetchall()
+            self.columnas_veterinarios = tuple(encabezados)
+            return resultado
+        finally:
             try:
-                cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM veterinario")
-                resultado = cursor.fetchall()
-                cursor.close()
+                if cursor is not None:
+                    cursor.close()
+            finally:
                 self.db.desconectar()
-                return resultado
-            except Exception as e:
-                print(f"Error al obtener veterinarios: {e}")
-                return []
-        return []
 
     # 4. cita
     def obtener_citas(self):
@@ -309,7 +450,6 @@ class MascotaModelo:
         self,
         id_cita,
         diagnostico,
-        tratamiento,
         peso_actual,
         observaciones,
         id_medicamento=None,
@@ -335,14 +475,15 @@ class MascotaModelo:
                 raise ValueError("La cita no existe o ya fue atendida.")
             id_mascota = cita[0]
 
-            observaciones_historial = []
-            if tratamiento:
-                observaciones_historial.append("Tratamiento: {}".format(tratamiento))
-            if observaciones:
-                observaciones_historial.append(
-                    "Observaciones: {}".format(observaciones)
-                )
-            texto_observaciones = "\n".join(observaciones_historial) or None
+            cursor.execute(
+                "UPDATE cita SET estado = 'atendida' "
+                "WHERE id_cita = %s AND estado = 'programada'",
+                (id_cita,)
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("La cita no existe o ya fue atendida.")
+
+            texto_observaciones = (observaciones or "").strip() or None
 
             cursor.execute(
                 "INSERT INTO historial_clinico "
@@ -373,10 +514,6 @@ class MascotaModelo:
                     )
                 )
 
-            cursor.execute(
-                "UPDATE cita SET estado = 'atendida' WHERE id_cita = %s",
-                (id_cita,)
-            )
             conexion.commit()
             return True
         except Exception:
@@ -396,7 +533,7 @@ class MascotaModelo:
                 cursor = conexion.cursor()
                 cursor.execute(
                     "SELECT c.id_cita, "
-                    "c.id_mascota, "
+                    "CONCAT(m.id_mascota, ' - ', m.nombre) AS mascota, "
                     "COALESCE(CAST(hp.id_propietario AS CHAR), 'Sin asignar') "
                     "AS id_propietario, "
                     "c.id_servicio, "
@@ -404,8 +541,9 @@ class MascotaModelo:
                     "c.fecha_hora, "
                     "c.estado "
                     "FROM cita c "
+                    "JOIN mascota m ON c.id_mascota = m.id_mascota "
                     "LEFT JOIN historial_propietario hp "
-                    "ON c.id_mascota = hp.id_mascota "
+                    "ON c.id_mascota = hp.id_mascota AND hp.fecha_fin IS NULL "
                     "ORDER BY c.id_cita ASC"
                 )
                 resultado = cursor.fetchall()
@@ -423,7 +561,15 @@ class MascotaModelo:
         if conexion:
             try:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM historial_clinico")
+                cursor.execute(
+                    "SELECT hc.id_historial_clinico, hc.id_cita, "
+                    "CONCAT(m.id_mascota, ' - ', m.nombre) AS mascota, "
+                    "hc.diagnostico, hc.peso_actual, hc.observaciones "
+                    "FROM historial_clinico hc "
+                    "JOIN cita c ON hc.id_cita = c.id_cita "
+                    "JOIN mascota m ON c.id_mascota = m.id_mascota "
+                    "ORDER BY hc.id_historial_clinico ASC"
+                )
                 resultado = cursor.fetchall()
                 cursor.close()
                 self.db.desconectar()
@@ -458,9 +604,12 @@ class MascotaModelo:
         try:
             cursor = conexion.cursor()
             cursor.execute(
-                "SELECT id_vacuna, id_mascota, nombre_vacuna, "
-                "fecha_aplicacion, fecha_proxima_dosis "
-                "FROM vacuna ORDER BY id_vacuna ASC"
+                "SELECT v.id_vacuna, "
+                "CONCAT(m.id_mascota, ' - ', m.nombre) AS mascota, "
+                "v.nombre_vacuna, v.fecha_aplicacion, v.fecha_proxima_dosis "
+                "FROM vacuna v "
+                "JOIN mascota m ON v.id_mascota = m.id_mascota "
+                "ORDER BY v.id_vacuna ASC"
             )
             return cursor.fetchall()
         finally:
@@ -497,7 +646,10 @@ class MascotaModelo:
         if conexion:
             try:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM servicio")
+                cursor.execute(
+                    "SELECT id_servicio, nombre_servicio, precio "
+                    "FROM servicio ORDER BY id_servicio ASC"
+                )
                 resultado = cursor.fetchall()
                 cursor.close()
                 self.db.desconectar()
@@ -549,7 +701,10 @@ class MascotaModelo:
         if conexion:
             try:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM detalle_atencion")
+                cursor.execute(
+                    "SELECT id_detalle, id_historial_clinico, id_medicamento, dosis "
+                    "FROM detalle_atencion ORDER BY id_detalle ASC"
+                )
                 resultado = cursor.fetchall()
                 cursor.close()
                 self.db.desconectar()
@@ -565,7 +720,14 @@ class MascotaModelo:
         if conexion:
             try:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT * FROM historial_propietario")
+                cursor.execute(
+                    "SELECT hp.id_historial, "
+                    "CONCAT(m.id_mascota, ' - ', m.nombre) AS mascota, "
+                    "hp.id_propietario, hp.fecha_inicio, hp.fecha_fin "
+                    "FROM historial_propietario hp "
+                    "JOIN mascota m ON hp.id_mascota = m.id_mascota "
+                    "ORDER BY hp.id_historial ASC"
+                )
                 resultado = cursor.fetchall()
                 cursor.close()
                 self.db.desconectar()

@@ -106,14 +106,11 @@ class VentanaVeterinario:
         self.diagnostico = self._agregar_campo(
             bloque, "Diagnóstico", 0, 0
         )
-        self.tratamiento = self._agregar_campo(
-            bloque, "Tratamiento", 0, 1
-        )
         self.peso_actual = self._agregar_campo(
-            bloque, "Peso actual (kg)", 2, 0
+            bloque, "Peso actual (kg)", 0, 1
         )
         self.observaciones = self._agregar_campo(
-            bloque, "Observaciones", 2, 1
+            bloque, "Observaciones", 2, 0
         )
 
         self.medicamento_combo = self._agregar_campo(
@@ -289,7 +286,6 @@ class VentanaVeterinario:
         exito = self.controlador.registrar_atencion_completa(
             int(seleccion_cita.split(" - ", 1)[0]),
             self.diagnostico.get().strip(),
-            self.tratamiento.get().strip(),
             self.peso_actual.get().strip(),
             self.observaciones.get().strip(),
             id_medicamento,
@@ -317,7 +313,6 @@ class VentanaVeterinario:
     def _limpiar_formulario(self):
         for campo in (
             self.diagnostico,
-            self.tratamiento,
             self.peso_actual,
             self.observaciones,
             self.dosis,

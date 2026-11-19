@@ -9,6 +9,7 @@ class MascotaControlador:
     def __init__(self):
         self.modelo = MascotaModelo()
         self.ultimo_error = None
+        self.columnas_veterinarios = ()
 
     def generar_respaldo_bd(self):
         carpeta_respaldos = os.path.abspath(
@@ -95,9 +96,9 @@ class MascotaControlador:
             return False
         return self.modelo.guardar_propietario(nombre, telefono, correo, direccion)
 
-    def guardar_cita(self, id_mascota, id_veterinario, id_servicio, fecha_hora, estado):
+    def guardar_cita(self, id_mascota, id_veterinario, id_servicio, fecha_hora):
         self.ultimo_error = None
-        if not all((id_mascota, id_veterinario, id_servicio, fecha_hora, estado)):
+        if not all((id_mascota, id_veterinario, id_servicio, fecha_hora)):
             self.ultimo_error = "Complete todos los campos de la cita."
             return False
 
@@ -117,14 +118,35 @@ class MascotaControlador:
             self.ultimo_error = "La fecha y hora debe tener formato YYYY-MM-DD HH:MM:SS."
             return False
 
-        if estado not in ("programada", "atendida", "cancelada"):
-            self.ultimo_error = "Seleccione un estado válido para la cita."
+        try:
+            return self.modelo.guardar_cita(*ids, fecha)
+        except Exception as error:
+            self.ultimo_error = "No fue posible guardar la cita: {}".format(error)
             return False
 
-        resultado = self.modelo.guardar_cita(*ids, fecha, estado)
-        if not resultado:
-            self.ultimo_error = "No fue posible guardar la cita. Verifique la conexión."
-        return resultado
+    def listar_citas_gestion(self):
+        self.ultimo_error = None
+        try:
+            return self.modelo.listar_citas_gestion()
+        except Exception as error:
+            self.ultimo_error = "No fue posible cargar las citas: {}".format(error)
+            return []
+
+    def cancelar_cita(self, id_cita):
+        self.ultimo_error = None
+        try:
+            cita_id = int(id_cita)
+            if cita_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            self.ultimo_error = "Seleccione una cita válida para cancelar."
+            return False
+
+        try:
+            return self.modelo.cancelar_cita(cita_id)
+        except Exception as error:
+            self.ultimo_error = "No fue posible cancelar la cita: {}".format(error)
+            return False
 
     def guardar_historial_clinico(self, id_cita, diagnostico, peso_actual, observaciones):
         self.ultimo_error = None
@@ -152,7 +174,15 @@ class MascotaControlador:
         return self.modelo.listar_propietarios()
 
     def listar_veterinarios(self):
-        return self.modelo.obtener_veterinarios()
+        self.ultimo_error = None
+        try:
+            veterinarios = self.modelo.obtener_veterinarios()
+            self.columnas_veterinarios = self.modelo.columnas_veterinarios
+            return veterinarios
+        except Exception as error:
+            self.columnas_veterinarios = ()
+            self.ultimo_error = "No fue posible cargar veterinarios: {}".format(error)
+            return []
 
     def listar_citas(self):
         return self.modelo.obtener_citas()
@@ -202,7 +232,6 @@ class MascotaControlador:
         self,
         id_cita,
         diagnostico,
-        tratamiento,
         peso_actual,
         observaciones,
         id_medicamento=None,
@@ -264,7 +293,6 @@ class MascotaControlador:
             return self.modelo.registrar_atencion_completa(
                 cita_id,
                 diagnostico.strip(),
-                (tratamiento or "").strip(),
                 peso,
                 (observaciones or "").strip(),
                 id_medicamento,

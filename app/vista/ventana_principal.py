@@ -134,7 +134,7 @@ class VentanaPrincipal:
 
         frame_tabla = ttk.Frame(self.tab_mascotas)
         frame_tabla.pack(side="right", fill="both", expand=True, padx=5, pady=5)
-        self.tree_mascotas = self.crear_tabla_generica(frame_tabla, ("ID", "Nombre", "Especie", "Raza", "Fecha Nacimiento", "Sexo"))
+        self.tree_mascotas = self.crear_tabla_generica(frame_tabla, ("ID", "Nombre", "Especie", "Raza", "Fecha Nacimiento", "Sexo", "Estado"))
 
     def guardar_mascota_ui(self):
         seleccion_propietario = self.txt_propietario_mascota.get().strip()
@@ -259,8 +259,24 @@ class VentanaPrincipal:
         self.tree_veterinarios = self.crear_tabla_generica(self.tab_veterinarios, ("ID", "Nombre", "Especialidad", "Teléfono", "Correo"))
 
     def actualizar_tabla_veterinarios(self):
-        for row in self.tree_veterinarios.get_children(): self.tree_veterinarios.delete(row)
-        insertar_filas_zebra(self.tree_veterinarios, self.controlador.listar_veterinarios())
+        veterinarios = self.controlador.listar_veterinarios()
+        if self.controlador.ultimo_error:
+            messagebox.showerror(
+                "Error al cargar veterinarios",
+                self.controlador.ultimo_error,
+                parent=self.root
+            )
+            return
+
+        columnas = self.controlador.columnas_veterinarios
+        self.tree_veterinarios.configure(columns=columnas)
+        for columna in columnas:
+            self.tree_veterinarios.heading(columna, text=columna)
+            self.tree_veterinarios.column(columna, width=140, anchor="center")
+
+        for row in self.tree_veterinarios.get_children():
+            self.tree_veterinarios.delete(row)
+        insertar_filas_zebra(self.tree_veterinarios, veterinarios)
 
     # 4. CITAS
     def setup_tab_citas(self):
@@ -270,7 +286,7 @@ class VentanaPrincipal:
             self.tab_citas,
             (
                 "ID",
-                "Mascota ID",
+                "Mascota",
                 "Propietario ID",
                 "Servicio ID",
                 "Veterinario ID",
@@ -289,20 +305,34 @@ class VentanaPrincipal:
     def setup_tab_historial_clinico(self):
         self.tab_historial_clinico = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_historial_clinico, text="Historial Clínico")
-        self.tree_historial_clinico = self.crear_tabla_generica(self.tab_historial_clinico, ("ID", "Mascota ID", "Diagnóstico", "Peso (kg)", "Tratamiento / Observación"))
+        self.tree_historial_clinico = self.crear_tabla_generica(self.tab_historial_clinico, ("ID", "Cita ID", "Mascota", "Diagnóstico", "Peso (kg)", "Observaciones"))
 
     def actualizar_tabla_historial_clinico(self):
-        for row in self.tree_historial_clinico.get_children(): self.tree_historial_clinico.delete(row)
+        filas = self.controlador.listar_historial_clinico()
+        filas = [
+            self._normalizar_saltos_linea(fila)
+            for fila in filas
+        ]
+        for row in self.tree_historial_clinico.get_children():
+            self.tree_historial_clinico.delete(row)
         insertar_filas_zebra(
             self.tree_historial_clinico,
-            self.controlador.listar_historial_clinico()
+            filas
+        )
+
+    @staticmethod
+    def _normalizar_saltos_linea(fila):
+        return tuple(
+            valor.replace("\r\n", " | ").replace("\r", " | ").replace("\n", " | ")
+            if isinstance(valor, str) else valor
+            for valor in fila
         )
 
     # 6. VACUNAS
     def setup_tab_vacunas(self):
         self.tab_vacunas = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_vacunas, text="Vacunas")
-        self.tree_vacunas = self.crear_tabla_generica(self.tab_vacunas, ("ID", "Mascota ID", "Nombre Vacuna", "Fecha Aplicación", "Próxima Dosis"))
+        self.tree_vacunas = self.crear_tabla_generica(self.tab_vacunas, ("ID", "Mascota", "Nombre Vacuna", "Fecha Aplicación", "Próxima Dosis"))
 
     def actualizar_tabla_vacunas(self):
         for row in self.tree_vacunas.get_children(): self.tree_vacunas.delete(row)
@@ -312,7 +342,7 @@ class VentanaPrincipal:
     def setup_tab_servicios(self):
         self.tab_servicios = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_servicios, text="Servicios")
-        self.tree_servicios = self.crear_tabla_generica(self.tab_servicios, ("ID", "Nombre Servicio", "Costo"))
+        self.tree_servicios = self.crear_tabla_generica(self.tab_servicios, ("ID", "Nombre Servicio", "Precio"))
 
     def actualizar_tabla_servicios(self):
         for row in self.tree_servicios.get_children(): self.tree_servicios.delete(row)
@@ -322,7 +352,7 @@ class VentanaPrincipal:
     def setup_tab_medicamentos(self):
         self.tab_medicamentos = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_medicamentos, text="Medicamentos")
-        self.tree_medicamentos = self.crear_tabla_generica(self.tab_medicamentos, ("ID", "Nombre", "Principio Activo", "Presentación", "Stock"))
+        self.tree_medicamentos = self.crear_tabla_generica(self.tab_medicamentos, ("ID", "Nombre", "Stock"))
 
     def actualizar_tabla_medicamentos(self):
         for row in self.tree_medicamentos.get_children(): self.tree_medicamentos.delete(row)
@@ -334,7 +364,7 @@ class VentanaPrincipal:
     def setup_tab_detalle_atencion(self):
         self.tab_detalle_atencion = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_detalle_atencion, text="Detalles Atención")
-        self.tree_detalle_atencion = self.crear_tabla_generica(self.tab_detalle_atencion, ("ID", "Cita ID", "Medicamento ID", "Dosis / Instrucción"))
+        self.tree_detalle_atencion = self.crear_tabla_generica(self.tab_detalle_atencion, ("ID", "Historial Clínico ID", "Medicamento ID", "Dosis"))
 
     def actualizar_tabla_detalle_atencion(self):
         for row in self.tree_detalle_atencion.get_children(): self.tree_detalle_atencion.delete(row)
@@ -347,7 +377,7 @@ class VentanaPrincipal:
     def setup_tab_historial_propietario(self):
         self.tab_historial_propietario = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_historial_propietario, text="Historial Propietario")
-        self.tree_historial_propietario = self.crear_tabla_generica(self.tab_historial_propietario, ("ID", "Propietario ID", "Mascota ID", "Fecha Registro", "Observaciones"))
+        self.tree_historial_propietario = self.crear_tabla_generica(self.tab_historial_propietario, ("ID", "Mascota", "Propietario ID", "Fecha Inicio", "Fecha Fin"))
 
     def actualizar_tabla_historial_propietario(self):
         for row in self.tree_historial_propietario.get_children(): self.tree_historial_propietario.delete(row)

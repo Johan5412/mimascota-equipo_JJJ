@@ -63,15 +63,17 @@ class SelectorRoles:
                 style="CardDescription.TLabel",
                 wraplength=600
             ).pack(anchor="w", pady=(3, 10))
+            if ventana is VentanaPrincipal:
+                comando = self.abrir_administrador
+            elif ventana is VentanaVeterinario:
+                comando = self.abrir_veterinario
+            else:
+                comando = lambda clase=ventana: self.abrir_modulo(clase)
             ttk.Button(
                 tarjeta,
                 text="Ingresar",
                 style=estilo,
-                command=(
-                    self.abrir_administrador
-                    if ventana is VentanaPrincipal
-                    else lambda clase=ventana: self.abrir_modulo(clase)
-                )
+                command=comando
             ).pack(anchor="e")
 
     def abrir_administrador(self):
@@ -88,6 +90,24 @@ class SelectorRoles:
             messagebox.showerror(
                 "Acceso Denegado",
                 "Contraseña incorrecta."
+            )
+
+    def abrir_veterinario(self):
+        contraseña = simpledialog.askstring(
+            "Acceso Veterinario",
+            "Ingrese la contraseña del módulo veterinario:",
+            show="*",
+            parent=self.root
+        )
+        if contraseña is None:
+            return
+        if contraseña == "2468":
+            self.abrir_modulo(VentanaVeterinario)
+        else:
+            messagebox.showerror(
+                "Acceso denegado",
+                "Contraseña incorrecta",
+                parent=self.root
             )
 
     def abrir_modulo(self, clase_ventana):

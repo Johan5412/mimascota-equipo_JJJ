@@ -23,10 +23,12 @@ class VentanaUsuario:
         self._crear_formulario_propietario()
         self._crear_formulario_mascota()
         self._crear_formulario_cita()
+        self._crear_gestion_citas()
         self.recargar_propietarios()
         self.recargar_mascotas()
         self.recargar_veterinarios()
         self.recargar_servicios()
+        self.recargar_citas_gestion()
 
         ttk.Button(
             self.root,
@@ -89,7 +91,7 @@ class VentanaUsuario:
         ).grid(row=12, column=0, sticky="ew", pady=(20, 0))
 
     def _crear_formulario_cita(self):
-        form = self._crear_pestana("Cita")
+        form = self._crear_pestana("Programar Cita")
         self.cita_mascota = self._agregar_campo(
             form, "Mascota", 0, ()
         )
@@ -102,16 +104,161 @@ class VentanaUsuario:
         self.cita_fecha = self._agregar_campo(
             form, "Fecha y Hora (YYYY-MM-DD HH:MM:SS)", 3
         )
-        self.cita_estado = self._agregar_campo(
-            form, "Estado", 4, ("programada", "atendida", "cancelada")
-        )
-        self.cita_estado.set("programada")
         ttk.Button(
             form,
             text="Guardar Cita",
             style="Primario.TButton",
             command=self.guardar_cita
-        ).grid(row=10, column=0, sticky="ew", pady=(20, 0))
+        ).grid(row=8, column=0, sticky="ew", pady=(20, 0))
+
+    def _crear_gestion_citas(self):
+        form = self._crear_pestana("Gestionar Citas")
+        form.columnconfigure(0, weight=1)
+        form.rowconfigure(0, weight=1)
+
+        columnas = (
+            "ID",
+            "Mascota",
+            "Especie",
+            "Propietario",
+            "Teléfono",
+            "Veterinario",
+            "Servicio",
+            "Fecha y Hora",
+            "Estado"
+        )
+        self.tree_citas = ttk.Treeview(
+            form,
+            columns=columnas,
+            show="headings",
+            height=8
+        )
+        for columna, ancho in zip(
+            columnas, (55, 125, 85, 140, 95, 140, 120, 140, 85)
+        ):
+            self.tree_citas.heading(columna, text=columna)
+            self.tree_citas.column(columna, width=ancho, anchor="center")
+        self.tree_citas.grid(row=0, column=0, sticky="nsew")
+        self.tree_citas.bind(
+            "<<TreeviewSelect>>", self._al_seleccionar_cita_existente
+        )
+
+        scrollbar_vertical = ttk.Scrollbar(
+            form, orient="vertical", command=self.tree_citas.yview
+        )
+        scrollbar_vertical.grid(row=0, column=1, sticky="ns")
+        scrollbar_horizontal = ttk.Scrollbar(
+            form, orient="horizontal", command=self.tree_citas.xview
+        )
+        scrollbar_horizontal.grid(row=1, column=0, sticky="ew")
+        self.tree_citas.configure(
+            yscrollcommand=scrollbar_vertical.set,
+            xscrollcommand=scrollbar_horizontal.set
+        )
+
+        detalle = ttk.LabelFrame(form, text="Información de la cita", padding=10)
+        detalle.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.cita_detalle = tk.StringVar(value="—")
+        ttk.Label(
+            detalle,
+            textvariable=self.cita_detalle,
+            justify="left",
+            wraplength=900
+        ).pack(anchor="w", fill="x")
+
+        ttk.Button(
+            form,
+            text="Cancelar Cita",
+            style="Peligro.TButton",
+            command=self.cancelar_cita
+        ).grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
+
+    def recargar_citas_gestion(self):
+        citas = self.controlador.listar_citas_gestion()
+        if self.controlador.ultimo_error:
+            messagebox.showerror(
+                "Error al cargar citas",
+                self.controlador.ultimo_error,
+                parent=self.root
+            )
+            return
+
+        seleccion = self.tree_citas.selection()
+        if seleccion:
+            self.tree_citas.selection_remove(*seleccion)
+        for fila in self.tree_citas.get_children():
+            self.tree_citas.delete(fila)
+        for cita in citas:
+            self.tree_citas.insert("", "end", values=cita)
+        self.cita_detalle.set("—")
+
+    def _al_seleccionar_cita_existente(self, _evento):
+        seleccion = self.tree_citas.selection()
+        if not seleccion:
+            self.cita_detalle.set("—")
+            return
+
+        cita = self.tree_citas.item(seleccion[0], "values")
+        self.cita_detalle.set(
+            "ID de cita: {0}\n"
+            "Mascota: {1} (especie: {2})\n"
+            "Propietario: {3} | Teléfono: {4}\n"
+            "Veterinario: {5}\n"
+            "Servicio: {6}\n"
+            "Fecha y hora: {7}\n"
+            "Estado: {8}".format(*cita)
+        )
+
+    def cancelar_cita(self):
+        seleccion = self.tree_citas.selection()
+        if not seleccion:
+            messagebox.showwarning(
+                "Cita no seleccionada",
+                "Seleccione una cita para cancelar.",
+                parent=self.root
+            )
+            return
+
+        cita = self.tree_citas.item(seleccion[0], "values")
+        id_cita = int(cita[0])
+        estado = str(cita[8]).lower()
+        if estado == "atendida":
+            messagebox.showerror(
+                "Acción no permitida",
+                "No se puede cancelar una cita atendida.",
+                parent=self.root
+            )
+            return
+        if estado == "cancelada":
+            messagebox.showinfo(
+                "Cita cancelada",
+                "La cita ya está cancelada.",
+                parent=self.root
+            )
+            return
+
+        confirmar = messagebox.askyesno(
+            "Confirmar cancelación",
+            "¿Está seguro de que desea cancelar la cita {}?".format(id_cita),
+            parent=self.root
+        )
+        if not confirmar:
+            return
+
+        if not self.controlador.cancelar_cita(id_cita):
+            messagebox.showerror(
+                "No se pudo cancelar la cita",
+                self.controlador.ultimo_error or "Verifique la cita e inténtelo nuevamente.",
+                parent=self.root
+            )
+            return
+
+        self.recargar_citas_gestion()
+        messagebox.showinfo(
+            "Cita cancelada",
+            "La cita se canceló correctamente.",
+            parent=self.root
+        )
 
     def recargar_mascotas(self):
         mascotas = self.controlador.listar_mascotas() or []
@@ -219,14 +366,14 @@ class VentanaUsuario:
             int(seleccion_mascota.split(" - ")[0]),
             int(seleccion_veterinario.split(" - ")[0]),
             int(seleccion_servicio.split(" - ")[0]),
-            self.cita_fecha.get().strip(),
-            self.cita_estado.get()
+            self.cita_fecha.get().strip()
         )
         if res:
             messagebox.showinfo("Éxito", "Cita guardada.")
-            for campo in (self.cita_mascota, self.cita_veterinario, self.cita_servicio, self.cita_fecha):
-                campo.delete(0, tk.END)
-            self.cita_estado.set("programada")
+            for campo in (self.cita_mascota, self.cita_veterinario, self.cita_servicio):
+                campo.set("")
+            self.cita_fecha.delete(0, tk.END)
+            self.recargar_citas_gestion()
         else:
             messagebox.showwarning(
                 "No se pudo guardar",
