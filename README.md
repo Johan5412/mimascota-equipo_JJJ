@@ -54,7 +54,8 @@ mimascota-equipo_JJJ/
     └── evidencias/
         └── Guia_Tecnica_Sistemas_Operativos_MiMascota_TripleJ_JJJ_v2.docx
 
-```Ejecutar la Aplicación (Nodo Cliente Windows)
+```
+Ejecutar la Aplicación (Nodo Cliente Windows)
 Requiere Python 3.10 o superior y conexión a Internet para comunicarse con el servidor MySQL en Azure (20.114.49.220:3306):
 
 cd app
