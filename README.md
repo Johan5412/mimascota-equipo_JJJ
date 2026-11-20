@@ -99,17 +99,27 @@ tail -n 10 /home/azureuser/backups_mimascota/backup.log 2>/dev/null || echo "Sin
 Para demostrar que systemd recupera automáticamente el demonio mysqld (Restart=on-failure) sin interrumpir la aplicación cliente en Windows:
 ```
 echo "=== 1. PID ORIGINAL DE MYSQL ==="
-PID_ANTES=$(pidof mysqld)
+PID_ANTES=$(pgrep -x mysqld)
 echo "PID antes del fallo: $PID_ANTES"
 
 echo "=== 2. ENVIANDO SEÑAL DE TERMINACIÓN ABRUPTA (SIGKILL / kill -9) ==="
-sudo kill -9 $PID_ANTES
+INICIO_MS=$(date +%s%3N)
+sudo kill -9 "$PID_ANTES"
 
 echo "=== 3. ESPERANDO RECUPERACIÓN AUTOMÁTICA DE SYSTEMD ==="
-sleep 3
-PID_DESPUES=$(pidof mysqld)
+while ! sudo mysqladmin ping --silent 2>/dev/null; do
+    sleep 0.1
+done
+FIN_MS=$(date +%s%3N)
+
+TIEMPO_TOTAL_MS=$((FIN_MS - INICIO_MS))
+TIEMPO_SEG=$(awk "BEGIN {printf \"%.2f\", $TIEMPO_TOTAL_MS/1000}")
+PID_DESPUES=$(pgrep -x mysqld)
+
 echo "PID recuperado por systemd: $PID_DESPUES"
-systemctl status mysql --no-pager | head -n 10
+echo "Tiempo total de recuperación (RTO): ${TIEMPO_TOTAL_MS} ms (${TIEMPO_SEG} segundos)"
+echo ""
+systemctl status mysql --no-pager -l | head -n 12
 ```
 4. Descarga Segura (SCP) y Restauración ante Desastres
 ```
