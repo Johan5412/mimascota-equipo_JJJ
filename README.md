@@ -15,7 +15,7 @@ Sistema de información clínica veterinaria desarrollado para las asignaturas d
 | :--- | :--- | :--- |
 | **Johan Manuel Restrepo Rosero** | [@Johan5412](https://github.com/Johan5412) | Arquitectura MVC, Interfaz Tkinter, Integración Cloud |
 | **Jhojan Camilo Quintero** | [@cammilooo](https://github.com/cammilooo) | Modelado Relacional (3FN), DDL/DML, Procedimientos y Triggers |
-| **Juan David Sánchez Burbano** | `@juandavidsanchez` | Infraestructura Linux Ubuntu, Systemd, Permisos POSIX y Cron |
+| **Juan David Sánchez Burbano** | [@juandaaaa29](https://github.com/juandaaaa29) | Infraestructura Linux Ubuntu, Systemd, Permisos POSIX y Cron |
 
 ---
 
